@@ -68,7 +68,8 @@ def saved_models(
         ckpt_max2keep = tl2_utils.MaxToKeep.get_named_max_to_keep(
             name="ckpt", use_circle_number=True
         )
-        saved_dir = ckpt_max2keep.step_and_ret_circle_dir(global_cfg.tl_ckptdir)
+        saved_dir = ckpt_max2keep.step_and_ret_circle_dir(
+            global_cfg.tl_ckptdir)
     os.makedirs(saved_dir, exist_ok=True)
 
     global_cfg.dump_to_file_with_command(
@@ -300,13 +301,13 @@ def train(rank, world_size, opt):
         generator,
         device_ids=[rank],
         find_unused_parameters=True,
-        broadcast_buffers=False,
+        broadcast_buffers=False
     )
     discriminator_ddp = DDP(
         discriminator,
         device_ids=[rank],
         find_unused_parameters=True,
-        broadcast_buffers=False,
+        broadcast_buffers=False
     )
     generator = generator_ddp.module
     generator.set_device(device)
@@ -429,7 +430,8 @@ def train(rank, world_size, opt):
         torch_utils.requires_grad(generator_ddp, False)
         torch_utils.requires_grad(discriminator_ddp, True)
 
-        aux_reg = global_cfg.train_aux_img and (step % global_cfg.update_aux_every == 0)
+        aux_reg = global_cfg.train_aux_img and (
+            step % global_cfg.update_aux_every == 0)
 
         with torch.cuda.amp.autocast(global_cfg.use_amp_D):
             # Generate images for discriminator training
@@ -473,7 +475,8 @@ def train(rank, world_size, opt):
                         gen_positions.append(g_pos)
 
                 gen_imgs = torch.cat(gen_imgs + gen_imgs_aux, axis=0)
-                gen_positions = torch.cat(gen_positions + gen_positions_aux, axis=0)
+                gen_positions = torch.cat(
+                    gen_positions + gen_positions_aux, axis=0)
             # end torch.no_grad
             if aux_reg:
                 real_imgs = torch.cat([real_imgs, real_imgs], dim=0)
@@ -499,10 +502,9 @@ def train(rank, world_size, opt):
 
         with torch.cuda.amp.autocast(global_cfg.use_amp_D):
             if global_cfg.r1_lambda > 0 and d_regularize:
-                # grad_penalty = (grad_real.view(grad_real.size(0), -1).norm(2, dim=1) ** 2).mean()
-                # grad_penalty = 0.5 * global_cfg.r1_lambda * global_cfg.d_reg_every * grad_penalty + 0 * r_preds[0]
                 grad_penalty = (
-                    grad_real.flatten(start_dim=1).square().sum(dim=1, keepdim=True)
+                    grad_real.flatten(start_dim=1).square().sum(
+                        dim=1, keepdim=True)
                 )
                 grad_penalty = (
                     0.5 * global_cfg.r1_lambda * grad_penalty * global_cfg.d_reg_every
@@ -523,8 +525,10 @@ def train(rank, world_size, opt):
 
             if rank == 0:
                 with torch.no_grad():
-                    summary_ddict["D_logits"]["D_logits_real"] = r_preds.mean().item()
-                    summary_ddict["D_logits"]["D_logits_fake"] = g_preds.mean().item()
+                    summary_ddict["D_logits"]["D_logits_real"] = r_preds.mean(
+                    ).item()
+                    summary_ddict["D_logits"]["D_logits_fake"] = g_preds.mean(
+                    ).item()
                     summary_ddict["grad_penalty"][
                         "grad_penalty"
                     ] = grad_penalty.mean().item()
@@ -562,7 +566,8 @@ def train(rank, world_size, opt):
         torch_utils.requires_grad(discriminator_ddp, False)
 
         # z = z_sampler((imgs.shape[0], metadata['latent_dim']), device=device, dist=metadata['z_dist'])
-        zs_list = generator.get_zs(imgs.shape[0], batch_split=global_cfg.batch_split)
+        zs_list = generator.get_zs(
+            imgs.shape[0], batch_split=global_cfg.batch_split)
         if global_cfg.batch_split == 1:
             zs_list = [zs_list]
 
@@ -625,8 +630,10 @@ def train(rank, world_size, opt):
         if (
             rank == 0 and (step + 1) % global_cfg.log_every == 0
         ) or global_cfg.tl_debug:
-            summary_ddict["lr"]["G_lr"] = torch_utils.get_optimizer_lr(optimizer_G)
-            summary_ddict["lr"]["D_lr"] = torch_utils.get_optimizer_lr(optimizer_D)
+            summary_ddict["lr"]["G_lr"] = torch_utils.get_optimizer_lr(
+                optimizer_G)
+            summary_ddict["lr"]["D_lr"] = torch_utils.get_optimizer_lr(
+                optimizer_D)
             summary_ddict["img_size"]["img_size"] = global_cfg.img_size
             summary_ddict["batch_size"]["batch_size"] = (
                 global_cfg.batch_size * world_size
@@ -747,7 +754,8 @@ def train(rank, world_size, opt):
                     saved_dir=f"{global_cfg.tl_ckptdir}/resume",
                 )
 
-                moxing_utils.modelarts_sync_results_dir(cfg=global_cfg, join=False)
+                moxing_utils.modelarts_sync_results_dir(
+                    cfg=global_cfg, join=False)
                 # end rank == 0
             ddp_utils.d2_synchronize()
 
@@ -784,8 +792,8 @@ if __name__ == "__main__":
     moxing_utils.setup_tl_outdir_obs(global_cfg, unzip_code=False)
     moxing_utils.modelarts_sync_results_dir(global_cfg, join=True)
 
-    import ipdb
-    ipdb.set_trace()
+    # import ipdb
+    # ipdb.set_trace()
     num_gpus = len(os.environ["CUDA_VISIBLE_DEVICES"].split(","))
     if num_gpus > 1:
         mp.spawn(train, args=(num_gpus, opt), nprocs=num_gpus, join=True)

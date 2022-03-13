@@ -2,3 +2,9 @@ results/
 .idea/
 env.md
 tl2_lib/
+.vscode/
+cache_torch_extensions/
+datasets/
+work_dir/
+__pycache/*
+*.pyc
